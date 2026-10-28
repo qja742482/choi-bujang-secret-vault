@@ -1,53 +1,159 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>BYTE BACK | 점령된 자료실</title>
+  <meta charset="UTF-8">
+  <title>최 부장의 비밀 수첩 (Choi Bujang's Secret Vault)</title>
+  <!-- Supabase CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    :root { color-scheme: dark; font-family: system-ui, sans-serif; }
-    body { margin: 0; min-height: 100vh; background: #101a28; color: #ecf4ff; }
-    main { max-width: 760px; margin: 0 auto; padding: 44px 22px 64px; }
-    .eyebrow { color: #8ad8df; font-size: 14px; font-weight: 700; letter-spacing: .08em; }
-    h1 { margin: 16px 0; font-size: clamp(30px, 7vw, 48px); line-height: 1.2; }
-    p { font-size: 17px; line-height: 1.7; color: #bfd0e5; }
-    .notice { margin: 26px 0; padding: 18px; border: 1px solid #d07384; border-radius: 14px; color: #ffe3e8; background: #612a3544; }
-    ul { list-style: none; display: grid; gap: 12px; padding: 0; }
-    li { border: 1px solid #51667c; border-radius: 14px; padding: 17px 19px; background: #1a2a3d; }
-    strong { display: block; font-size: 18px; margin-bottom: 5px; }
-    li span { color: #bfd0e5; }
+    body { font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 20px; background: #f4f4f9; }
+    .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    input, textarea { width: 100%; padding: 8px; margin: 6px 0 12px 0; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+    button { background: #0070f3; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; }
+    button:hover { background: #0051a2; }
+    .memo-item { border-bottom: 1px solid #eee; padding: 10px 0; margin-bottom: 10px; }
+    .hidden { display: none; }
   </style>
 </head>
 <body>
-  <main>
-    <div class="eyebrow">BYTE BACK · 1단계 피해 확인</div>
-    <h1>점령된 자료실</h1>
-    <p>지금은 보호 장치가 없는 상태입니다. 아래 기록은 모두 실습을 위해 만든 가상 자료입니다.</p>
-    <div class="notice">로그인하지 않은 방문자도 자료를 볼 수 있습니다. 공개 범위를 확인하고, 다음 제작 단계에서 접근을 차례로 막아 주세요.</div>
-    <ul id="notes" aria-live="polite"><li>가상 자료를 불러오는 중입니다.</li></ul>
-  </main>
-  <script type="module">
-    const list = document.querySelector('#notes');
-    try {
-      const response = await fetch('/api/memos', { cache: 'no-store' });
-    if (!response.ok) throw new Error('공개 자료를 읽을 수 없습니다.');
-    const data = await response.json();
-    if (!Array.isArray(data)) throw new Error('자료 형식이 맞지 않습니다.');
-    list.replaceChildren(...data.map(note => {
-      
-      // ...
-        const item = document.createElement('li');
-        const title = document.createElement('strong');
-        const content = document.createElement('span');
-        title.textContent = note.title;
-        content.textContent = note.content;
-        item.append(title, content);
-        return item;
-      }));
-    } catch (error) {
-      const item = document.createElement('li');
-      item.textContent = error.message;
-      list.replaceChildren(item);
+
+  <!-- 로그인 영역 -->
+  <div id="auth-section" class="card">
+    <h2>로그인</h2>
+    <input type="email" id="email" placeholder="이메일 입력">
+    <input type="password" id="password" placeholder="비밀번호 입력">
+    <button onclick="handleLogin()">로그인</button>
+  </div>
+
+  <!-- 메모 관리 영역 (로그인 후 표시) -->
+  <div id="memo-section" class="card hidden">
+    <h2>기밀 메모 보관소</h2>
+    <button onclick="handleLogout()" style="background: #e00; float: right;">로그아웃</button>
+    <p id="user-email-display" style="font-weight: bold; color: #555;"></p>
+
+    <hr style="margin: 20px 0;">
+
+    <h3>새 메모 작성</h3>
+    <input type="text" id="memo-title" placeholder="제목">
+    <textarea id="memo-body" placeholder="내용"></textarea>
+    <button onclick="handleCreateMemo()">메모 추가</button>
+
+    <h3 style="margin-top: 30px;">내 메모 목록</h3>
+    <div id="memo-list">데이터를 불러오는 중...</div>
+  </div>
+
+  <script>
+    // Supabase 클라이언트 초기화 (본인의 Supabase URL과 Publishable Key 입력)
+    const SUPABASE_URL = 'https://vpicvdydirvwjaeuemzb.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_...'; // 본인의 퍼블리시 키 입력
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // 페이지 로드 시 로그인 상태 확인
+    window.addEventListener('DOMContentLoaded', async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        showMemoSection(session);
+      }
+    });
+
+    // 로그인 함수
+    async function handleLogin() {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        alert('로그인 실패: ' + error.message);
+        return;
+      }
+      showMemoSection(data.session);
+    }
+
+    // 로그아웃 함수
+    async function handleLogout() {
+      await supabase.auth.signOut();
+      document.getElementById('memo-section').classList.add('hidden');
+      document.getElementById('auth-section').classList.remove('hidden');
+    }
+
+    // 화면 전환
+    function showMemoSection(session) {
+      document.getElementById('auth-section').classList.add('hidden');
+      document.getElementById('memo-section').classList.remove('hidden');
+      document.getElementById('user-email-display').innerText = `접속 계정: ${session.user.email}`;
+      fetchMemos();
+    }
+
+    // 1. 목록 조회 (GET /api/memos)
+    async function fetchMemos() {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      const res = await fetch('/api/memos', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (!res.ok) {
+        document.getElementById('memo-list').innerHTML = '<p style="color:red;">메모를 불러오지 못했습니다. (권한 없음)</p>';
+        return;
+      }
+
+      const memos = await res.json();
+      const listDiv = document.getElementById('memo-list');
+      if (memos.length === 0) {
+        listDiv.innerHTML = '<p>저장된 메모가 없습니다.</p>';
+        return;
+      }
+
+      listDiv.innerHTML = memos.map(m => `
+        <div class="memo-item">
+          <h4>${m.title}</h4>
+          <p>${m.body}</p>
+          <button onclick="handleDeleteMemo('${m.id}')" style="background:#e00; padding:5px 10px; font-size:12px;">삭제</button>
+        </div>
+      `).join('');
+    }
+
+    // 2. 메모 추가 (POST /api/memos)
+    async function handleCreateMemo() {
+      const title = document.getElementById('memo-title').value;
+      const body = document.getElementById('memo-body').value;
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      const res = await fetch('/api/memos', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ title, body })
+      });
+
+      if (res.ok) {
+        document.getElementById('memo-title').value = '';
+        document.getElementById('memo-body').value = '';
+        fetchMemos();
+      } else {
+        alert('메모 작성 실패');
+      }
+    }
+
+    // 3. 메모 삭제 (DELETE /api/memos/:id)
+    async function handleDeleteMemo(id) {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      const res = await fetch(`/api/memos/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (res.ok) {
+        fetchMemos();
+      } else {
+        alert('삭제 실패');
+      }
     }
   </script>
 </body>

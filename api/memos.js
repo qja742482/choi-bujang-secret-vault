@@ -1,32 +1,107 @@
+import { randomUUID } from 'node:crypto';
+import { createLoginVerifier } from '../src/verify-login.mjs';
+import config from '../aleph.config.json';
+import { createClient } from '@supabase/supabase-js';
+
+const verifyLoginAuthorization = createLoginVerifier({
+  config,
+  supabaseSecretKey: process.env.SUPABASE_SECRET_KEY,
+});
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SECRET_KEY
+);
+
 export default async function handler(req, res) {
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
+  // 1. 로그인 여부 및 토큰 검사 (서버 검증 사용자 ID 확보)
+  const authHeader = req.headers['authorization'];
+  const authResult = await verifyLoginAuthorization(authHeader);
+
+  if (!authResult) {
+    return res.status(401).json({ error: 'Unauthorized: 로그인이 필요합니다.' });
   }
 
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY;
+  const userId = authResult.userId;
+  const { id } = req.query; // Express/Vercel URL parameter /api/memos/:id
 
-  if (!supabaseUrl || !supabaseSecretKey) {
-    return res.status(500).json({ error: 'Missing environment variables' });
+  // --- [GET] /api/memos (목록 조회) ---
+  if (req.method === 'GET' && !id) {
+    const { data, error } = await supabase
+      .from('memos')
+      .select('id, title, body')
+      .eq('owner_id', userId);
+
+    if (error) return res.status(500).json({ error: error.message });
+    return res.status(200).json(data ?? []);
   }
 
-  try {
-    const response = await fetch(`${supabaseUrl}/rest/v1/memos?select=*`, {
-      method: 'GET',
-      headers: {
-        'apikey': supabaseSecretKey,
-        'Authorization': `Bearer ${supabaseSecretKey}`,
-        'Content-Type': 'application/json'
-      }
-    });
+  // --- [POST] /api/memos (메모 생성) ---
+  if (req.method === 'POST') {
+    const { id: reqId, title, body } = req.body || {};
+    const memoId = reqId || randomUUID(); // ID가 없으면 서버가 UUID 생성
 
-    if (!response.ok) {
-      throw new Error(`Supabase fetch failed: ${response.statusText}`);
-    }
+    const { data, error } = await supabase
+      .from('memos')
+      .insert([{ id: memoId, title, body, owner_id: userId }])
+      .select('id')
+      .single();
 
-    const data = await response.json();
+    if (error) return res.status(500).json({ error: error.message });
+    return res.status(200).json({ id: data.id });
+  }
+
+  // ID가 필요한 상세 요청 (/api/memos/:id)
+  if (!id) {
+    return res.status(400).json({ error: 'Memo ID is required' });
+  }
+
+  // --- [GET] /api/memos/:id (단건 조회 - 본인 소유만) ---
+  if (req.method === 'GET') {
+    const { data, error } = await supabase
+      .from('memos')
+      .select('id, title, body')
+      .eq('id', id)
+      .eq('owner_id', userId) // <-- 본인 소유 확인 추가
+      .maybeSingle();
+
+    if (error) return res.status(500).json({ error: error.message });
+    if (!data) return res.status(404).json({ error: 'Not found' });
+
     return res.status(200).json(data);
-  } catch (error) {
-    return res.status(500).json({ error: 'Internal Server Error' });
   }
+
+  // --- [PUT] /api/memos/:id (메모 수정 - 본인 소유만) ---
+  if (req.method === 'PUT') {
+    const { title, body } = req.body || {};
+    const { data, error } = await supabase
+      .from('memos')
+      .update({ title, body })
+      .eq('id', id)
+      .eq('owner_id', userId) // <-- 본인 소유 확인 추가
+      .select('id, title, body')
+      .maybeSingle();
+
+    if (error) return res.status(500).json({ error: error.message });
+    if (!data) return res.status(404).json({ error: 'Not found' });
+
+    return res.status(200).json(data);
+  }
+
+  // --- [DELETE] /api/memos/:id (메모 삭제 - 본인 소유만) ---
+  if (req.method === 'DELETE') {
+    const { data, error } = await supabase
+      .from('memos')
+      .delete()
+      .eq('id', id)
+      .eq('owner_id', userId) // <-- 본인 소유 확인 추가
+      .select('id');
+
+    if (error) return res.status(500).json({ error: error.message });
+    if (!data || data.length === 0) return res.status(404).json({ error: 'Not found' });
+
+    return res.status(200).json({ success: true });
+  }
+
+  return res.status(405).json({ error: 'Method not allowed' });
 }
