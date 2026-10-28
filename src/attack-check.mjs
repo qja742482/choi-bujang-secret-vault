@@ -1,5 +1,6 @@
+JavaScript
 export async function runAttackChecks(config) {
-  if (config.step !== 2) throw new Error('이 단계의 공격 점검을 src/attack-check.mjs에 구현해 주세요.');
+  if (config.step !== 3) throw new Error('이 단계의 공격 점검을 src/attack-check.mjs에 구현해 주세요.');
   let app;
   try {
     app = new URL(config.publicAppUrl);
@@ -11,24 +12,16 @@ export async function runAttackChecks(config) {
     throw new Error('aleph.config.json의 실제 배포 주소를 먼저 넣어 주세요.');
   }
   
-  // 2단계: /api/memos 서버리스 API 엔드포인트 호출 점검
+  // 3단계: 무로그인 상태에서 /api/memos 요청 시 401 Unauthorized 반환 여부 점검
   const response = await fetch(new URL('/api/memos', app), {
     redirect: 'error', signal: AbortSignal.timeout(10000),
   });
   
-  let visible = false;
-  if (response.ok) {
-    try {
-      const data = await response.json();
-      visible = Array.isArray(data) || (data && Array.isArray(data.notes));
-    } catch {
-      // 비JSON 응답인 경우
-    }
-  }
+  const unauthorized = response.status === 401;
 
   return [{ 
-    attackId: 'public-api-exposure', 
-    expected: '서버 API 엔드포인트를 통한 메모 데이터 조회 가능 여부 점검',
-    observed: visible ? '/api/memos 엔드포인트가 인증 없이 데이터를 반환하는 보안 약점 확인 완료' : `API 응답 확인 불가 (HTTP ${response.status})` 
+    attackId: 'unauthorized-memo-access-blocked', 
+    expected: '로그인되지 않은 상태에서의 /api/memos 요청이 401로 차단되는지 점검',
+    observed: unauthorized ? '무로그인 /api/memos 접근이 401로 정상 차단됨 확인' : `예상치 못한 응답 상태 코드 (HTTP ${response.status})` 
   }];
 }
