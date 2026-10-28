@@ -23,9 +23,9 @@ export default async function handler(req, res) {
   }
 
   const userId = authResult.userId;
-  const { id } = req.query; // Express/Vercel URL parameter /api/memos/:id
+  const { id } = req.query;
 
-  // --- [GET] /api/memos (목록 조회) ---
+  // --- [GET] /api/memos (목록 조회 - 본인 소유만) ---
   if (req.method === 'GET' && !id) {
     const { data, error } = await supabase
       .from('memos')
@@ -36,22 +36,21 @@ export default async function handler(req, res) {
     return res.status(200).json(data ?? []);
   }
 
-  // --- [POST] /api/memos (메모 생성) ---
+  // --- [POST] /api/memos (메모 생성 - 검증된 userId 강제 매핑) ---
   if (req.method === 'POST') {
     const { id: reqId, title, body } = req.body || {};
-    const memoId = reqId || randomUUID(); // ID가 없으면 서버가 UUID 생성
+    const memoId = reqId || randomUUID();
 
     const { data, error } = await supabase
       .from('memos')
-      .insert([{ id: memoId, title, body, owner_id: userId }])
-      .select('id')
+      .insert([{ id: memoId, title, body, owner_id: userId }]) // 본인 ID 강제 적용
+      .select('id, title, body')
       .single();
 
     if (error) return res.status(500).json({ error: error.message });
-    return res.status(200).json({ id: data.id });
+    return res.status(200).json(data);
   }
 
-  // ID가 필요한 상세 요청 (/api/memos/:id)
   if (!id) {
     return res.status(400).json({ error: 'Memo ID is required' });
   }
@@ -62,7 +61,7 @@ export default async function handler(req, res) {
       .from('memos')
       .select('id, title, body')
       .eq('id', id)
-      .eq('owner_id', userId) // <-- 본인 소유 확인 추가
+      .eq('owner_id', userId)
       .maybeSingle();
 
     if (error) return res.status(500).json({ error: error.message });
@@ -71,14 +70,14 @@ export default async function handler(req, res) {
     return res.status(200).json(data);
   }
 
-  // --- [PUT] /api/memos/:id (메모 수정 - 본인 소유만) ---
+  // --- [PUT] /api/memos/:id (메모 수정 - 본인 소유 행만) ---
   if (req.method === 'PUT') {
     const { title, body } = req.body || {};
     const { data, error } = await supabase
       .from('memos')
       .update({ title, body })
       .eq('id', id)
-      .eq('owner_id', userId) // <-- 본인 소유 확인 추가
+      .eq('owner_id', userId) // 기존 행의 소유자가 본인인지 확인
       .select('id, title, body')
       .maybeSingle();
 
@@ -88,13 +87,13 @@ export default async function handler(req, res) {
     return res.status(200).json(data);
   }
 
-  // --- [DELETE] /api/memos/:id (메모 삭제 - 본인 소유만) ---
+  // --- [DELETE] /api/memos/:id (메모 삭제 - 본인 소유 행만) ---
   if (req.method === 'DELETE') {
     const { data, error } = await supabase
       .from('memos')
       .delete()
       .eq('id', id)
-      .eq('owner_id', userId) // <-- 본인 소유 확인 추가
+      .eq('owner_id', userId) // 삭제 대상 소유자가 본인인지 확인
       .select('id');
 
     if (error) return res.status(500).json({ error: error.message });
