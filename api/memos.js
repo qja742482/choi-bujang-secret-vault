@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import { createLoginVerifier } from '../src/verify-login.mjs';
 import config from '../aleph.config.json';
 import { createClient } from '@supabase/supabase-js';
@@ -29,7 +28,7 @@ export default async function handler(req, res) {
   if (req.method === 'GET' && !id) {
     const { data, error } = await supabase
       .from('memos')
-      .select('id, title, body')
+      .select('id, content')
       .eq('owner_id', userId);
 
     if (error) return res.status(500).json({ error: error.message });
@@ -38,13 +37,15 @@ export default async function handler(req, res) {
 
   // --- [POST] /api/memos (메모 생성 - 검증된 userId 강제 매핑) ---
   if (req.method === 'POST') {
-    const { id: reqId, title, body } = req.body || {};
-    const memoId = reqId || randomUUID();
+    const { content } = req.body || {};
+    if (typeof content !== 'string' || !content.trim()) {
+      return res.status(400).json({ error: 'content is required' });
+    }
 
     const { data, error } = await supabase
       .from('memos')
-      .insert([{ id: memoId, title, body, owner_id: userId }]) // 본인 ID 강제 적용
-      .select('id, title, body')
+      .insert([{ content, owner_id: userId }]) // id는 DB가 자동 생성
+      .select('id, content')
       .single();
 
     if (error) return res.status(500).json({ error: error.message });
@@ -59,7 +60,7 @@ export default async function handler(req, res) {
   if (req.method === 'GET') {
     const { data, error } = await supabase
       .from('memos')
-      .select('id, title, body')
+      .select('id, content')
       .eq('id', id)
       .eq('owner_id', userId)
       .maybeSingle();
@@ -72,13 +73,17 @@ export default async function handler(req, res) {
 
   // --- [PUT] /api/memos/:id (메모 수정 - 본인 소유 행만) ---
   if (req.method === 'PUT') {
-    const { title, body } = req.body || {};
+    const { content } = req.body || {};
+    if (typeof content !== 'string' || !content.trim()) {
+      return res.status(400).json({ error: 'content is required' });
+    }
+
     const { data, error } = await supabase
       .from('memos')
-      .update({ title, body })
+      .update({ content })
       .eq('id', id)
-      .eq('owner_id', userId) // 기존 행의 소유자가 본인인지 확인
-      .select('id, title, body')
+      .eq('owner_id', userId)
+      .select('id, content')
       .maybeSingle();
 
     if (error) return res.status(500).json({ error: error.message });
@@ -93,7 +98,7 @@ export default async function handler(req, res) {
       .from('memos')
       .delete()
       .eq('id', id)
-      .eq('owner_id', userId) // 삭제 대상 소유자가 본인인지 확인
+      .eq('owner_id', userId)
       .select('id');
 
     if (error) return res.status(500).json({ error: error.message });
