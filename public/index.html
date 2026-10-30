@@ -34,8 +34,7 @@
     <hr style="margin: 20px 0;">
 
     <h3>새 메모 작성</h3>
-    <input type="text" id="memo-title" placeholder="제목">
-    <textarea id="memo-body" placeholder="내용"></textarea>
+    <textarea id="memo-content" placeholder="내용"></textarea>
     <button onclick="handleCreateMemo()">메모 추가</button>
 
     <h3 style="margin-top: 30px;">내 메모 목록</h3>
@@ -43,10 +42,13 @@
   </div>
 
   <script>
-    // Supabase 클라이언트 초기화 (본인의 Supabase URL과 Publishable Key 입력)
-    const SUPABASE_URL = 'https://vpicvdydirvwjaeuemzb.supabase.co';
-    const SUPABASE_ANON_KEY = 'sb_publishable_...'; // 본인의 퍼블리시 키 입력
+    // Supabase 클라이언트 초기화 (로그인 전용)
+    const SUPABASE_URL = 'https://spouandtqldltnxskrtb.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_CtSXooNNsr9XANypehpHcg_k2pNdsBp'; // 본인의 publishable 키로 교체
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const esc = s => String(s ?? '').replace(/[&<>"']/g,
+      c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
     // 페이지 로드 시 로그인 상태 확인
     window.addEventListener('DOMContentLoaded', async () => {
@@ -107,17 +109,15 @@
 
       listDiv.innerHTML = memos.map(m => `
         <div class="memo-item">
-          <h4>${m.title}</h4>
-          <p>${m.body}</p>
-          <button onclick="handleDeleteMemo('${m.id}')" style="background:#e00; padding:5px 10px; font-size:12px;">삭제</button>
+          <p>${esc(m.content)}</p>
+          <button onclick="handleDeleteMemo('${esc(m.id)}')" style="background:#e00; padding:5px 10px; font-size:12px;">삭제</button>
         </div>
       `).join('');
     }
 
     // 2. 메모 추가 (POST /api/memos)
     async function handleCreateMemo() {
-      const title = document.getElementById('memo-title').value;
-      const body = document.getElementById('memo-body').value;
+      const content = document.getElementById('memo-content').value;
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
 
@@ -127,12 +127,11 @@
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ title, body })
+        body: JSON.stringify({ content })
       });
 
       if (res.ok) {
-        document.getElementById('memo-title').value = '';
-        document.getElementById('memo-body').value = '';
+        document.getElementById('memo-content').value = '';
         fetchMemos();
       } else {
         alert('메모 작성 실패');
