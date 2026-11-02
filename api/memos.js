@@ -1,5 +1,5 @@
 import { createLoginVerifier } from '../src/verify-login.mjs';
-import config from '../aleph.config.json';
+import config from '../aleph.config.json' with { type: 'json' };
 import { createClient } from '@supabase/supabase-js';
 
 const verifyLoginAuthorization = createLoginVerifier({
