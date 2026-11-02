@@ -45,14 +45,14 @@
     // Supabase 클라이언트 초기화 (로그인 전용)
     const SUPABASE_URL = 'https://spouandtqldltnxskrtb.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_CtSXooNNsr9XANypehpHcg_k2pNdsBp';
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const esc = s => String(s ?? '').replace(/[&<>"']/g,
       c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
     // 페이지 로드 시 로그인 상태 확인
     window.addEventListener('DOMContentLoaded', async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await sb.auth.getSession();
       if (session) {
         showMemoSection(session);
       }
@@ -63,7 +63,7 @@
       const email = document.getElementById('email').value;
       const password = document.getElementById('password').value;
 
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await sb.auth.signInWithPassword({ email, password });
       if (error) {
         alert('로그인 실패: ' + error.message);
         return;
@@ -73,7 +73,7 @@
 
     // 로그아웃 함수 (유지)
     async function handleLogout() {
-      await supabase.auth.signOut();
+      await sb.auth.signOut();
       document.getElementById('memo-section').classList.add('hidden');
       document.getElementById('auth-section').classList.remove('hidden');
     }
@@ -88,7 +88,7 @@
 
     // 1. 메모 목록 조회 (동일 호스트 서버 API /api/memos 호출)
     async function fetchMemos() {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await sb.auth.getSession();
       const token = session?.access_token;
 
       const res = await fetch('/api/memos', {
@@ -118,7 +118,7 @@
     // 2. 메모 추가 (POST /api/memos)
     async function handleCreateMemo() {
       const content = document.getElementById('memo-content').value;
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await sb.auth.getSession();
       const token = session?.access_token;
 
       const res = await fetch('/api/memos', {
@@ -140,7 +140,7 @@
 
     // 3. 메모 삭제 (DELETE /api/memos/:id)
     async function handleDeleteMemo(id) {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await sb.auth.getSession();
       const token = session?.access_token;
 
       const res = await fetch(`/api/memos/${id}`, {
