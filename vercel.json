@@ -3,6 +3,9 @@
   "framework": null,
   "buildCommand": "echo skip",
   "outputDirectory": "public",
+  "rewrites": [
+    { "source": "/api/memos/:id", "destination": "/api/memos?id=:id" }
+  ],
   "headers": [
     {
       "source": "/(.*)",
