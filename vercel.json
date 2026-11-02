@@ -1,8 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "buildCommand": "echo skip",
-  "outputDirectory": "public",
+  "buildCommand": "npm run build",
   "rewrites": [
     { "source": "/api/memos/:id", "destination": "/api/memos?id=:id" }
   ],
