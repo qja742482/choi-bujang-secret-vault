@@ -2,13 +2,16 @@ import { createLoginVerifier } from '../src/verify-login.mjs';
 import config from '../aleph.config.json' with { type: 'json' };
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
+// 데이터베이스 권한을 우회하여 자유롭게 제어할 수 있는 Secret/Service Role 키를 사용합니다.
+const supabaseKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_ANON_KEY;
 const supabaseUrl = process.env.SUPABASE_URL;
 
 const verifyLoginAuthorization = createLoginVerifier({
   config,
   supabaseSecretKey: supabaseKey,
 });
+
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Credentials', true);
@@ -34,15 +37,6 @@ export default async function handler(req, res) {
 
   const userId = authResult.userId;
   const { id } = req.query;
-
-  // 2. 요청 시 전달된 Authorization 헤더를 Supabase 클라이언트에 그대로 주입합니다.
-  const supabase = createClient(supabaseUrl, supabaseKey, {
-    global: {
-      headers: {
-        authorization: authHeader,
-      },
-    },
-  });
 
   try {
     // --- [GET] /api/memos (목록 조회 - 본인 소유만) ---
