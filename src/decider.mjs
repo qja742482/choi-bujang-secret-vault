@@ -18,7 +18,6 @@ export async function decide(request) {
   }
 
   // 2. 복합 이상 패턴 감지 (시각, 네트워크, 다량 읽기 등이 함께 결합된 경우)
-  // 심판이 테스트하는 복합 이상 조건: region이 foreign이거나, network가 unusual이거나, hour가 특정 시간대이면서 recentEvents가 존재하는 경우 등
   const isForeignOrUnusual = request.signals && (
     request.signals.region === 'foreign' || 
     request.signals.network === 'unusual' || 
@@ -29,10 +28,16 @@ export async function decide(request) {
     event.kind === 'risk_signal' || (event.count && event.count >= 10)
   );
 
-  // 시각·네트워크·다량 읽기 등의 복합 조건이 함께 만족될 때 step_up 요구
   const isComplexAnomaly = isForeignOrUnusual && hasRiskEvents;
 
-  if (isComplexAnomaly) {
+  // 3. 엔진이 검증한 재인증(stepUp)이 완료되었고(verified), 그 시각이 5분(300초) 이내인지 확인
+  const isStepUpVerified = request.stepUp && 
+    request.stepUp.verified === true && 
+    request.stepUp.authAgeSeconds !== null && 
+    request.stepUp.authAgeSeconds <= 300;
+
+  // 4. 복합 이상 패턴이지만 재인증이 완료되지 않은 경우에만 step_up 요구
+  if (isComplexAnomaly && !isStepUpVerified) {
     return {
       schema: 'aleph.decision.v1',
       requestId: request.requestId,
@@ -42,7 +47,7 @@ export async function decide(request) {
     };
   }
 
-  // 3. 정상적인 요청인 경우 허용
+  // 5. 정상적인 요청이거나 재인증이 완료된 경우 허용
   return {
     schema: 'aleph.decision.v1',
     requestId: request.requestId,
