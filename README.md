@@ -51,3 +51,17 @@
 ### 3. 공개 API의 남은 보안 약점
 - **익명 접근 가능**: 현재 Vercel 서버리스 함수(`/api/memos`)는 별도의 인증(Authentication) 및 인가(Authorization) 처리가 되어 있지 않아, API 주소만 알면 누구나 데이터를 조회할 수 있는 공개(Public) 엔드포인트 형태입니다.
 - **향후 과제**: 다음 단계에서 사용자 인증 및 접근 제어(RLS / Session / Token) 조치를 추가하여 데이터 접근을 차단해야 합니다.
+
+## 🔍 6단계: 등록한 기기만 자료실에 들어옵니다 (Device Registration)
+
+### 1. 판정기 규칙 구현
+- `src/decider.mjs`에 `device_registered` 규칙을 추가했습니다.
+- 요청 객체의 `request.deviceRegistered` 값이 참(`true`)일 때만 자료실 접근을 허용하고, 미등록이거나 값이 없는 경우 거부(`deny`, `reasonCode: 'device_not_registered'`)하도록 보안 로직을 적용했습니다.
+
+### 2. 검증 테스트 실행 결과
+- 터미널에서 `npm run decider:test` 명령어를 실행하여 아래와 같이 정상 요청 통과 및 미등록 기기 차단 결과를 확인했습니다.
+  - **통과 · 등록 기기의 정상 요청**
+  - **통과 · 미등록 기기의 가상 요청 (`deny` · `device_not_registered`)**
+
+### 3. 설정 변경
+- `aleph.config.json`의 `step` 값을 `6`으로 업데이트하여 요구사항에 맞추었습니다.
