@@ -2,15 +2,13 @@ import { createLoginVerifier } from '../src/verify-login.mjs';
 import config from '../aleph.config.json' with { type: 'json' };
 import { createClient } from '@supabase/supabase-js';
 
-// 서버 검증에는 Service Role / Secret Key가 필요합니다.
-const secretKey = process.env.SUPABASE_SECRET_KEY;
-// DB 클라이언트는 등록된 키 중 유효한 것을 가져옵니다.
-const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SECRET_KEY;
+// 이제 secret 키 대신 퍼블리시블 키(ANON_KEY)를 공통으로 사용합니다.
+const supabaseKey = process.env.SUPABASE_ANON_KEY;
 const supabaseUrl = process.env.SUPABASE_URL;
 
 const verifyLoginAuthorization = createLoginVerifier({
   config,
-  supabaseSecretKey: secretKey,
+  supabaseSecretKey: supabaseKey,
 });
 
 const supabase = createClient(supabaseUrl, supabaseKey);
