@@ -18,7 +18,8 @@ export default async function handler(req, res) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': supabaseAnonKey
+        'apikey': supabaseAnonKey,
+        'Authorization': `Bearer ${supabaseAnonKey}`
       },
       body: JSON.stringify({ email, password })
     });
