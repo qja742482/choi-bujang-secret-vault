@@ -2,18 +2,19 @@ import { createLoginVerifier } from '../src/verify-login.mjs';
 import config from '../aleph.config.json' with { type: 'json' };
 import { createClient } from '@supabase/supabase-js';
 
+// 1. 환경 변수 키를 함수 밖에서 미리 안전하게 정의합니다
+const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SECRET_KEY;
+const supabaseUrl = process.env.SUPABASE_URL;
+
 const verifyLoginAuthorization = createLoginVerifier({
   config,
-  supabaseSecretKey: process.env.SUPABASE_SECRET_KEY,
+  supabaseSecretKey: supabaseKey,
 });
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SECRET_KEY
-);
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default async function handler(req, res) {
-  // 1. 로그인 여부 및 토큰 검사 (서버 검증 사용자 ID 확보)
+  // 2. 로그인 여부 및 토큰 검사 (서버 검증 사용자 ID 확보)
   const authHeader = req.headers['authorization'];
   const authResult = await verifyLoginAuthorization(authHeader);
 
@@ -44,7 +45,7 @@ export default async function handler(req, res) {
 
     const { data, error } = await supabase
       .from('memos')
-      .insert([{ content, owner_id: userId }]) // id는 DB가 자동 생성
+      .insert([{ content, owner_id: userId }])
       .select('id, content')
       .single();
 
