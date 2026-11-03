@@ -2,17 +2,6 @@ import { createLoginVerifier } from '../src/verify-login.mjs';
 import config from '../aleph.config.json' with { type: 'json' };
 import { createClient } from '@supabase/supabase-js';
 
-// 데이터베이스 권한을 우회하여 자유롭게 제어할 수 있는 Secret/Service Role 키를 사용합니다.
-const supabaseKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_ANON_KEY;
-const supabaseUrl = process.env.SUPABASE_URL;
-
-const verifyLoginAuthorization = createLoginVerifier({
-  config,
-  supabaseSecretKey: supabaseKey,
-});
-
-const supabase = createClient(supabaseUrl, supabaseKey);
-
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -27,6 +16,23 @@ export default async function handler(req, res) {
     return;
   }
 
+  // 🚨 Vercel 환경 변수에 SUPABASE_SECRET_KEY가 없으면 즉시 에러 응답
+  const secretKey = process.env.SUPABASE_SECRET_KEY;
+  const supabaseUrl = process.env.SUPABASE_URL;
+
+  if (!secretKey) {
+    return res.status(500).json({ 
+      error: "Vercel 환경 변수에 SUPABASE_SECRET_KEY(service_role)가 등록되지 않았습니다! Vercel Settings를 확인해주세요." 
+    });
+  }
+
+  const verifyLoginAuthorization = createLoginVerifier({
+    config,
+    supabaseSecretKey: secretKey,
+  });
+
+  const supabase = createClient(supabaseUrl, secretKey);
+
   // 1. 로그인 여부 및 토큰 검사
   const authHeader = req.headers['authorization'];
   const authResult = await verifyLoginAuthorization(authHeader);
@@ -39,7 +45,7 @@ export default async function handler(req, res) {
   const { id } = req.query;
 
   try {
-    // --- [GET] /api/memos (목록 조회 - 본인 소유만) ---
+    // --- [GET] /api/memos (목록 조회) ---
     if (req.method === 'GET' && !id) {
       const { data, error } = await supabase
         .from('memos')
