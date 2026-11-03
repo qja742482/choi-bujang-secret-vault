@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>최 부장의 비밀 수첩 (Choi Bujang's Secret Vault)</title>
-  <!-- Supabase CDN -->
+  <!-- Supabase CDN (세션 관리용 window.supabase만 사용, 공개 키 없음) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body { font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 20px; background: #f4f4f9; }
@@ -42,10 +42,9 @@
   </div>
 
   <script>
-    // Supabase 클라이언트 초기화 (로그인 전용)
+    // 공개 키 제거 완료 (서버 API /api/login을 통해 인증 수행)
     const SUPABASE_URL = 'https://spouandtqldltnxskrtb.supabase.co';
-    const SUPABASE_ANON_KEY = 'sb_publishable_CtSXooNNsr9XANypehpHcg_k2pNdsBp';
-    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const sb = window.supabase.createClient(SUPABASE_URL, '', { auth: { persistSession: true, autoRefreshToken: false } });
 
     const esc = s => String(s ?? '').replace(/[&<>"']/g,
       c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -58,27 +57,49 @@
       }
     });
 
-    // 로그인 함수 (유지)
+    // 서버 API를 통한 로그인 처리
     async function handleLogin() {
       const email = document.getElementById('email').value;
       const password = document.getElementById('password').value;
 
-      const { data, error } = await sb.auth.signInWithPassword({ email, password });
-      if (error) {
-        alert('로그인 실패: ' + error.message);
-        return;
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          alert('로그인 실패: ' + (data.error || '아이디와 비밀번호를 확인하세요.'));
+          return;
+        }
+
+        // 서버에서 받아온 토큰으로 Supabase 세션 설정
+        await sb.auth.setSession({
+          access_token: data.access_token,
+          refresh_token: data.refresh_token
+        });
+
+        const { data: { session } } = await sb.auth.getSession();
+        if (session) {
+          showMemoSection(session);
+        }
+      } catch (err) {
+        console.error('Login error:', err);
+        alert('로그인 중 오류가 발생했습니다.');
       }
-      showMemoSection(data.session);
     }
 
-    // 로그아웃 함수 (유지)
+    // 로그아웃 함수
     async function handleLogout() {
       await sb.auth.signOut();
       document.getElementById('memo-section').classList.add('hidden');
       document.getElementById('auth-section').classList.remove('hidden');
     }
 
-    // 화면 전환 (문법 오류 수정 완료)
+    // 화면 전환
     function showMemoSection(session) {
       document.getElementById('auth-section').classList.add('hidden');
       document.getElementById('memo-section').classList.remove('hidden');
@@ -86,7 +107,7 @@
       fetchMemos();
     }
 
-    // 1. 메모 목록 조회 (동일 호스트 서버 API /api/memos 호출)
+    // 1. 메모 목록 조회
     async function fetchMemos() {
       const { data: { session } } = await sb.auth.getSession();
       const token = session?.access_token;
@@ -115,7 +136,7 @@
       `).join('');
     }
 
-    // 2. 메모 추가 (POST /api/memos)
+    // 2. 메모 추가
     async function handleCreateMemo() {
       const content = document.getElementById('memo-content').value;
       const { data: { session } } = await sb.auth.getSession();
@@ -138,7 +159,7 @@
       }
     }
 
-    // 3. 메모 삭제 (DELETE /api/memos/:id)
+    // 3. 메모 삭제
     async function handleDeleteMemo(id) {
       const { data: { session } } = await sb.auth.getSession();
       const token = session?.access_token;
