@@ -55,6 +55,7 @@ export default async function handler(req, res) {
     return res.status(200).json(data);
   } catch (err) {
     console.error('Login API Error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    // 에러 내용을 클라이언트(브라우저 콘솔)로 그대로 반환해서 원인을 확인합니다
+    return res.status(500).json({ error: 'Internal server error', details: err.message });
   }
 }
