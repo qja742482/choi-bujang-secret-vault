@@ -5,10 +5,6 @@ import { deploymentIdentity } from './deployment-identity.mjs';
 const root = resolve(import.meta.dirname, '..');
 const config = JSON.parse(await readFile(resolve(root, 'aleph.config.json'), 'utf8'));
 
-if (config.step > 2) {
-  throw new Error('2단계 이후에는 공개 data.json 복사를 끝내고 보호된 자료 API로 바꾸세요.');
-}
-
 await mkdir(resolve(root, 'public'), { recursive: true });
 
 if (!process.argv.includes('--local')) {
