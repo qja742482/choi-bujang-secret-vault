@@ -44,8 +44,9 @@
   <script>
     // 공개 키 제거 완료 (서버 API /api/login을 통해 인증 수행)
     const SUPABASE_URL = 'https://spouandtqldltnxskrtb.supabase.co';
-    const sb = window.supabase.createClient(SUPABASE_URL, '', { auth: { persistSession: true, autoRefreshToken: false } });
-
+    const SUPABASE_ANON_KEY = 'sb_publishable_CtSXooNNsr9XANypehpHcg_k2pNdsBp';
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
     const esc = s => String(s ?? '').replace(/[&<>"']/g,
       c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
