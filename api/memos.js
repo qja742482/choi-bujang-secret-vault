@@ -2,7 +2,6 @@ import { createLoginVerifier } from '../src/verify-login.mjs';
 import config from '../aleph.config.json' with { type: 'json' };
 import { createClient } from '@supabase/supabase-js';
 
-// 이제 secret 키 대신 퍼블리시블 키(ANON_KEY)를 공통으로 사용합니다.
 const supabaseKey = process.env.SUPABASE_ANON_KEY;
 const supabaseUrl = process.env.SUPABASE_URL;
 
@@ -10,8 +9,6 @@ const verifyLoginAuthorization = createLoginVerifier({
   config,
   supabaseSecretKey: supabaseKey,
 });
-
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Credentials', true);
@@ -27,7 +24,7 @@ export default async function handler(req, res) {
     return;
   }
 
-  // 1. 로그인 여부 및 토큰 검사 (서버 검증 사용자 ID 확보)
+  // 1. 로그인 여부 및 토큰 검사
   const authHeader = req.headers['authorization'];
   const authResult = await verifyLoginAuthorization(authHeader);
 
@@ -37,6 +34,15 @@ export default async function handler(req, res) {
 
   const userId = authResult.userId;
   const { id } = req.query;
+
+  // 2. 요청 시 전달된 Authorization 헤더를 Supabase 클라이언트에 그대로 주입합니다.
+  const supabase = createClient(supabaseUrl, supabaseKey, {
+    global: {
+      headers: {
+        authorization: authHeader,
+      },
+    },
+  });
 
   try {
     // --- [GET] /api/memos (목록 조회 - 본인 소유만) ---
@@ -53,7 +59,7 @@ export default async function handler(req, res) {
       return res.status(200).json(data ?? []);
     }
 
-    // --- [POST] /api/memos (메모 생성 - 검증된 userId 강제 매핑) ---
+    // --- [POST] /api/memos (메모 생성) ---
     if (req.method === 'POST') {
       const { content } = req.body || {};
       if (typeof content !== 'string' || !content.trim()) {
@@ -77,7 +83,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Memo ID is required' });
     }
 
-    // --- [GET] /api/memos/:id (단건 조회 - 본인 소유만) ---
+    // --- [GET] /api/memos/:id (단건 조회) ---
     if (req.method === 'GET') {
       const { data, error } = await supabase
         .from('memos')
@@ -95,7 +101,7 @@ export default async function handler(req, res) {
       return res.status(200).json(data);
     }
 
-    // --- [PUT] /api/memos/:id (메모 수정 - 본인 소유 행만) ---
+    // --- [PUT] /api/memos/:id (메모 수정) ---
     if (req.method === 'PUT') {
       const { content } = req.body || {};
       if (typeof content !== 'string' || !content.trim()) {
@@ -119,7 +125,7 @@ export default async function handler(req, res) {
       return res.status(200).json(data);
     }
 
-    // --- [DELETE] /api/memos/:id (메모 삭제 - 본인 소유 행만) ---
+    // --- [DELETE] /api/memos/:id (메모 삭제) ---
     if (req.method === 'DELETE') {
       const { data, error } = await supabase
         .from('memos')
