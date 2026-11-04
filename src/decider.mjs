@@ -16,13 +16,11 @@ export async function decide(request) {
     };
   }
 
-  // 2. 7단계 핵심: signals/recentEvents 기반 낯선 접속 판단 및 stepUp 검증
-  // (stepUp이 완료된 요청이 아니고, signals나 recentEvents에 이상 징후가 있으면 step_up 필요)
-  const isStepUpVerified = Boolean(request.stepUp?.verified || request.stepUpVerified);
+  // 2. 7단계 핵심: 오직 signals와 recentEvents 계약 속성만 읽어서 낯선 접속 판단 및 stepUp 검증
+  const isStepUpVerified = Boolean(request.stepUp?.verified);
   const hasSuspiciousSignals = Boolean(
     (request.signals && request.signals.length > 0) ||
-    (request.recentEvents && request.recentEvents.length > 0) ||
-    request.suspicious
+    (request.recentEvents && request.recentEvents.length > 0)
   );
 
   if (hasSuspiciousSignals && !isStepUpVerified) {
@@ -37,7 +35,7 @@ export async function decide(request) {
 
   const { path, method } = request;
 
-  // 3. 반 공지(공지사항) 경로: GET만 허용, 쓰기는 거부
+  // 3. 공지사항 경로: GET만 허용, 쓰기는 거부
   if (path && (path.startsWith('/api/public-notices') || path.startsWith('/public-notices'))) {
     if (method && method !== 'GET') {
       return {
@@ -57,8 +55,7 @@ export async function decide(request) {
     };
   }
 
-  // 4. 메모/자료 단건 조회 경로 (/api/notes/... 및 /notes/...)
-  // ID 형식(UUID 등)을 제한하지 않고 단건 읽기(GET)는 허용, 목록 조회(/notes, /api/notes) 및 쓰기는 거부
+  // 4. 메모 단건 조회 경로 (/api/notes/... 및 /notes/...)
   if (path && (path.startsWith('/api/notes') || path.startsWith('/notes'))) {
     const isExactListPath = path === '/api/notes' || path === '/api/notes/' || path === '/notes' || path === '/notes/';
 
@@ -81,7 +78,7 @@ export async function decide(request) {
     };
   }
 
-  // 5. 강사 자료 및 기타 알 수 없는 경로는 모두 거부
+  // 5. 알 수 없는 경로는 모두 거부
   return {
     schema: 'aleph.decision.v1',
     requestId: request.requestId,
