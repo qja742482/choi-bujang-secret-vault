@@ -1,9 +1,20 @@
 export function runAttackChecks(events) {
-  // 9단계 및 10단계 공격/폭주 검증 로직
+  // events가 배열이 아니거나 객체/단일 값일 경우 안전하게 배열로 변환
+  let eventList = [];
+  if (Array.isArray(events)) {
+    eventList = events;
+  } else if (events && typeof events === 'object') {
+    if (Array.isArray(events.events)) {
+      eventList = events.events;
+    } else {
+      eventList = [events];
+    }
+  }
+
   const userEventsMap = {};
-  for (const ev of (events || [])) {
-    const sub = ev.identity?.sub;
-    if (!sub || ev.method !== 'GET') continue;
+  for (const ev of eventList) {
+    const sub = ev?.identity?.sub;
+    if (!sub || ev?.method !== 'GET') continue;
     if (!userEventsMap[sub]) userEventsMap[sub] = [];
     userEventsMap[sub].push(new Date(ev.at).getTime());
   }
