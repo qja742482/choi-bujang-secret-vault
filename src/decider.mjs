@@ -18,11 +18,9 @@ export async function decide(request) {
 
   const { path, method } = request;
 
-  // 2. 반 공지(공지사항) 경로 규칙: GET(읽기)만 허용, 쓰기(POST, PUT, PATCH, DELETE 등)는 엄격히 거부
-  if (path && path.startsWith('/api/public-notices')) {
-    // 하위 경로가 더 있거나 GET이 아닌 경우 거부
-    const subPath = path.replace('/api/public-notices', '').replace(/^\/+/, '');
-    if (subPath.length > 0 || (method && method !== 'GET')) {
+  // 2. 반 공지(공지사항) 경로 규칙: GET(읽기)만 허용, 쓰기는 거부
+  if (path && (path.startsWith('/api/public-notices') || path.startsWith('/public-notices'))) {
+    if (method && method !== 'GET') {
       return {
         schema: 'aleph.decision.v1',
         requestId: request.requestId,
@@ -40,14 +38,14 @@ export async function decide(request) {
     };
   }
 
-  // 3. 메모 경로 규칙: 오직 GET /api/notes/:id (ID가 정확히 존재하는 단건 조회)만 허용
-  // 전체 목록(/api/notes 또는 /api/notes/)이나 다른 깊이의 경로는 거부
-  if (path && path.startsWith('/api/notes')) {
-    const subPath = path.replace('/api/notes', '').replace(/^\/+/, '');
-    const segments = subPath ? subPath.split('/') : [];
+  // 3. 메모/자료 단건 조회 경로 규칙: /notes/:id 또는 /api/notes/:id 형태의 GET 요청 허용
+  // 전체 목록 경로(예: /notes 또는 /api/notes 자체)나 쓰기 메소드는 거부
+  if (path && (path.startsWith('/api/notes') || path.startsWith('/notes'))) {
+    const cleanPath = path.replace(/^\/api/, ''); // /api/notes -> /notes
+    const segments = cleanPath.replace(/^\/+/, '').split('/');
     
-    // 정확히 하나의 ID 세그먼트만 있고, 메소드가 GET인 경우만 허용
-    const isSingleIdGet = segments.length === 1 && segments[0].length > 0 && method === 'GET';
+    // segments[0] === 'notes' 이고, 뒤에 정확히 하나의 ID가 존재하며, GET 요청인 경우 허용
+    const isSingleIdGet = segments.length === 2 && segments[0] === 'notes' && segments[1].length > 0 && method === 'GET';
 
     if (!isSingleIdGet) {
       return {
