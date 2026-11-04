@@ -1,5 +1,5 @@
-export function runAttackCheck(events) {
-  // 9단계 폭주(Burst Read) 공격 검증 로직
+export function runAttackChecks(events) {
+  // 9단계 및 10단계 공격/폭주 검증 로직
   const userEventsMap = {};
   for (const ev of (events || [])) {
     const sub = ev.identity?.sub;
