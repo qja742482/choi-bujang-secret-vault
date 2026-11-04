@@ -16,8 +16,16 @@ export async function decide(request) {
     };
   }
 
-  // 2. 7단계 재확인 규칙: 낯선 접속(복합 이상 접속) 시 step_up 요구
-  if (request.suspicious && !request.stepUpVerified) {
+  // 2. 7단계 핵심: signals/recentEvents 기반 낯선 접속 판단 및 stepUp 검증
+  // (stepUp이 완료된 요청이 아니고, signals나 recentEvents에 이상 징후가 있으면 step_up 필요)
+  const isStepUpVerified = Boolean(request.stepUp?.verified || request.stepUpVerified);
+  const hasSuspiciousSignals = Boolean(
+    (request.signals && request.signals.length > 0) ||
+    (request.recentEvents && request.recentEvents.length > 0) ||
+    request.suspicious
+  );
+
+  if (hasSuspiciousSignals && !isStepUpVerified) {
     return {
       schema: 'aleph.decision.v1',
       requestId: request.requestId,
@@ -29,7 +37,7 @@ export async function decide(request) {
 
   const { path, method } = request;
 
-  // 3. 공지사항 경로: GET(읽기)만 허용, 쓰기는 거부
+  // 3. 반 공지(공지사항) 경로: GET만 허용, 쓰기는 거부
   if (path && (path.startsWith('/api/public-notices') || path.startsWith('/public-notices'))) {
     if (method && method !== 'GET') {
       return {
@@ -49,9 +57,9 @@ export async function decide(request) {
     };
   }
 
-  // 4. 메모/자료 단건 조회 경로 허용 (ID 형식 제한 없음, 목록인 /api/notes 또는 /notes 자체만 거부)
+  // 4. 메모/자료 단건 조회 경로 (/api/notes/... 및 /notes/...)
+  // ID 형식(UUID 등)을 제한하지 않고 단건 읽기(GET)는 허용, 목록 조회(/notes, /api/notes) 및 쓰기는 거부
   if (path && (path.startsWith('/api/notes') || path.startsWith('/notes'))) {
-    // 정확히 목록 경로 자체인 경우(예: /api/notes 또는 /notes 또는 뒤에 슬래시만 있는 경우)는 거부
     const isExactListPath = path === '/api/notes' || path === '/api/notes/' || path === '/notes' || path === '/notes/';
 
     if (isExactListPath || method !== 'GET') {
@@ -64,7 +72,6 @@ export async function decide(request) {
       };
     }
 
-    // 그 외 단건 조회 GET 요청은 모두 허용 (ID 형식 제한 없음)
     return {
       schema: 'aleph.decision.v1',
       requestId: request.requestId,
@@ -74,7 +81,7 @@ export async function decide(request) {
     };
   }
 
-  // 5. 그 외 알 수 없는 경로는 모두 거부
+  // 5. 강사 자료 및 기타 알 수 없는 경로는 모두 거부
   return {
     schema: 'aleph.decision.v1',
     requestId: request.requestId,
