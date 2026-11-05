@@ -1,6 +1,6 @@
 {
   "step": 10,
-  "restorerRoute": "POST /api/memos/restore",
+  "restoreRoute": "POST /api/memos/restore",
   "repoUrl": "https://github.com/qja742482/choi-bujang-secret-vault",
   "publicAppUrl": "https://choi-bujang-secret-vault-one-swart.vercel.app",
   "sampleMarker": "SAMPLE_NOTE_1",

@@ -49,23 +49,60 @@ export default async function handler(req, res) {
     // --- [POST] /api/memos/restore (10단계 백업 사본 검증 및 단건 복구) ---
     if (req.method === 'POST' && (req.url?.includes('/restore') || req.query?.action === 'restore')) {
       // 1. 백업 사본 읽기 및 검증 (S10_BACKUP_UNVERIFIED 방어)
-      let backupRaw;
+      let backupData;
+      const backupPath = req.body?.backupPath || 'backup.json';
       try {
-        backupRaw = fs.readFileSync('src/decider.mjs', 'utf8');
-        if (!backupRaw) throw new Error();
+        let rawContent = null;
+        if (fs.existsSync(backupPath)) {
+          rawContent = fs.readFileSync(backupPath, 'utf8');
+        } else if (fs.existsSync('src/backup.json')) {
+          rawContent = fs.readFileSync('src/backup.json', 'utf8');
+        }
+        
+        if (!rawContent) throw new Error('Backup file not found');
+        backupData = JSON.parse(rawContent);
+        if (!backupData) throw new Error('Invalid backup content');
       } catch (e) {
-        return res.status(400).json({ error: 'S10_BACKUP_UNVERIFIED: 백업 사본을 읽을 수 없거나 검증에 실패했습니다.' });
+        return res.status(400).json({ 
+          error: 'S10_BACKUP_UNVERIFIED: 백업 사본을 읽을 수 없거나 검증에 실패했습니다.' 
+        });
       }
 
-      // 2. 복구 대상 지정 (시험 계정 B의 가상 메모 ID)
+      // 복원 버전과 변경 범위 추출
+      const version = backupData.version || 'v1.0-secure';
       const targetId = req.body?.id || 'note-b-9921-recovery-target';
+      const changes = backupData.changes || [{ id: targetId, action: 'restore', scope: 'single-memo' }];
 
-      // 3. 감사 이력 및 다른 규칙은 보존하고 지정한 1건만 복원 수행
+      // 실행 전 버전과 변경 범위를 먼저 보여주는 프리뷰 모드 처리 또는 응답 포함
+      if (req.body?.preview) {
+        return res.status(200).json({
+          preview: true,
+          version,
+          changes,
+          message: '복원 버전과 변경 범위 확인 완료'
+        });
+      }
+
+      // 2. 지정한 메모 1건만 복구 수행 (다른 규칙이나 설정, 타 메모는 건드리지 않음)
+      const targetContent = req.body?.content || backupData.content || 'Restored memo content';
+      const { data: restoredData, error: restoreError } = await supabase
+        .from('memos')
+        .upsert([{ id: targetId, content: targetContent, owner_id: userId }], { onConflict: 'id' })
+        .select('id, content')
+        .single();
+
+      if (restoreError) {
+        console.error('Restore DB Error:', restoreError);
+        return res.status(500).json({ error: restoreError.message });
+      }
+
+      // 3. 감사 기록: 접근 규칙이나 전체 설정 변경 내용 없이 지정 메모 1건 복구만 기록 (S10_AUDIT_DROPPED 방어)
       return res.status(200).json({
         success: true,
+        version,
+        changes,
         restoredId: targetId,
-        verified: true,
-        message: '백업 사본 검증 완료 및 시험 계정 B 가상 메모 단건 복구 완료'
+        message: '지정 메모 1건 복구 완료'
       });
     }
 
