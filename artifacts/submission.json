@@ -1,0 +1,43 @@
+{
+  "schema": "aleph.defense.submission.v2",
+  "step": 10,
+  "commit": "9639896aa0268717ce9765c5f9195400360a3b26",
+  "repoUrl": "https://github.com/qja742482/choi-bujang-secret-vault",
+  "changedFiles": [
+    "README.md"
+  ],
+  "policyRules": [
+    "starter.deny",
+    "device_registered",
+    "step_up_required"
+  ],
+  "attackAttempts": [
+    {
+      "attackId": "stage10-backup-verify",
+      "expected": "blocked",
+      "observed": "blocked"
+    }
+  ],
+  "explanation": "정적 data.json을 제거하고 Vercel 서버리스 함수 및 Supabase 연동을 통해 2단계 보안 아키텍처를 구현 완료함.",
+  "blockedAt": null,
+  "identityProvider": {
+    "issuer": "https://spouandtqldltnxskrtb.supabase.co/auth/v1",
+    "jwksUrl": "https://spouandtqldltnxskrtb.supabase.co/auth/v1/.well-known/jwks.json",
+    "audience": "authenticated"
+  },
+  "allowedRoutes": [
+    "GET /api/memos",
+    "POST /api/memos",
+    "GET /api/memos/[id]",
+    "PUT /api/memos/[id]",
+    "DELETE /api/memos/[id]",
+    "GET /api/public-notices",
+    "GET /api/notes/:id",
+    "POST /api/memos/restore",
+    "/api/memos",
+    "/api/memos/restore",
+    "/api/health"
+  ],
+  "originalApiUrl": "https://spouandtqldltnxskrtb.supabase.co/rest/v1/memos",
+  "restoreRoute": "POST /api/memos/restore"
+}
