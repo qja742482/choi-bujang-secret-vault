@@ -1,23 +1,27 @@
 {
   "step": 10,
+  "restorerRoute": "POST /api/memos/restore",
   "repoUrl": "https://github.com/qja742482/choi-bujang-secret-vault",
   "publicAppUrl": "https://choi-bujang-secret-vault-one-swart.vercel.app",
   "sampleMarker": "SAMPLE_NOTE_1",
   "judgeIssuer": "https://aleph-judge-production.up.railway.app/defense/judge",
   "identityProvider": {
-  "issuer": "https://spouandtqldltnxskrtb.supabase.co/auth/v1",
-  "jwksUrl": "https://spouandtqldltnxskrtb.supabase.co/auth/v1/.well-known/jwks.json",
+    "issuer": "https://spouandtqldltnxskrtb.supabase.co/auth/v1",
+    "jwksUrl": "https://spouandtqldltnxskrtb.supabase.co/auth/v1/.well-known/jwks.json",
     "audience": "authenticated"
   },
-"allowedRoutes": [
-  "GET /api/memos",
-  "POST /api/memos",
-  "GET /api/memos/[id]",
-  "PUT /api/memos/[id]",
-  "DELETE /api/memos/[id]",
-  "GET /api/public-notices",
-  "GET /api/notes/:id"
-],
-  "originalApiUrl": "https://spouandtqldltnxskrtb.supabase.co/rest/v1/memos",
-  "restoreRoute": null
+  "allowedRoutes": [
+    "GET /api/memos",
+    "POST /api/memos",
+    "GET /api/memos/[id]",
+    "PUT /api/memos/[id]",
+    "DELETE /api/memos/[id]",
+    "GET /api/public-notices",
+    "GET /api/notes/:id",
+    "POST /api/memos/restore",
+    "/api/memos",
+    "/api/memos/restore",
+    "/api/health"
+  ],
+  "originalApiUrl": "https://spouandtqldltnxskrtb.supabase.co/rest/v1/memos"
 }
